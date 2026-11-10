@@ -1,0 +1,79 @@
+name: 課題を更新
+
+on:
+  schedule:
+    # 日本時間 7時・10時・13時・16時・19時・22時（GitHubの都合で数十分遅れることがあります）
+    - cron: "7 22,1,4,7,10,13 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "ログイン失敗で止まっているときに再開する（パスワードを直してから）"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: kadai
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 準備
+        run: |
+          pip install -r requirements-ci.txt
+          python -m playwright install --with-deps chromium
+
+      - name: 前回の状態を読み込む
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: kadai-state-${{ github.run_id }}
+          restore-keys: kadai-state-
+
+      - name: ポータルから課題を取得
+        env:
+          REITAKU_ID: ${{ secrets.REITAKU_ID }}
+          REITAKU_PW: ${{ secrets.REITAKU_PW }}
+          KADAI_PASSPHRASE: ${{ secrets.KADAI_PASSPHRASE }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          KADAI_STATE_DIR: state
+          FORCE: ${{ inputs.force && '1' || '0' }}
+        run: |
+          mkdir -p _site
+          cp index.html sw.js manifest.json icon-192.png icon-512.png apple-touch-icon.png icon.svg _site/
+          python reitaku_kadai.py --cloud _site/data.json
+
+      - name: 状態を保存
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: kadai-state-${{ github.run_id }}
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - name: スマホ用ページを公開
+        id: deployment
+        uses: actions/deploy-pages@v4
