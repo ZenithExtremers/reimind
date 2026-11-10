@@ -1,0 +1,7 @@
+debug/
+state/
+kadai.json
+config.json
+kadai.ics
+__pycache__/
+web/data.json

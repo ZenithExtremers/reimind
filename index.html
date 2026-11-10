@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f5f7a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ReiMind">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>ReiMind</title>
+<style>
+:root{--main:#1f5f7a;--bg:#f3f4f6;--card:#fff;--text:#1b1f23;--sub:#5f6b76;--line:#e3e5e8;
+--over:#c62828;--today:#d84315;--soon:#ef8a00;--week:#b58f00;--later:#7a8691;--done:#2e7d32}
+@media (prefers-color-scheme:dark){:root{--bg:#101417;--card:#1a2025;--text:#e8edf1;--sub:#9aa7b2;--line:#2a3238}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--main);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 16px 12px}
+.hrow{display:flex;align-items:center;gap:8px}
+h1{font-size:18px;margin:0;flex:1}
+.icon-btn{background:rgba(255,255,255,.15);border:0;color:#fff;border-radius:10px;width:40px;height:40px;font-size:18px;cursor:pointer}
+.icon-btn:active{background:rgba(255,255,255,.3)}
+.spin{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.stats{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center;font-size:13px}
+.chip{padding:3px 9px;border-radius:999px;font-weight:700;font-size:12px;background:#fff;color:var(--main)}
+.chip.over{background:var(--over);color:#fff}.chip.today{background:var(--today);color:#fff}.chip.soon{background:var(--soon);color:#fff}
+.upd{margin-left:auto;opacity:.85;font-size:12px}
+main{max-width:680px;margin:0 auto;padding:8px 12px calc(84px + env(safe-area-inset-bottom))}
+.seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:3px;margin:8px 0 4px}
+.seg button{flex:1;border:0;background:none;padding:9px;border-radius:9px;font-size:14px;color:var(--sub);cursor:pointer;font-family:inherit}
+.seg button.on{background:var(--main);color:#fff;font-weight:700}
+.gh{font-size:13px;font-weight:700;margin:16px 4px 6px}
+.card{display:flex;background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:8px;overflow:hidden;transition:opacity .25s,transform .25s}
+.card.leaving{opacity:0;transform:translateX(30px)}
+.stripe{width:6px;flex:none}
+.cb{flex:1;padding:12px 12px 12px 14px;min-width:0}
+.meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub)}
+.badge{color:#fff;font-weight:700;padding:2px 8px;border-radius:6px;font-size:12px}
+.title{font-size:16px;font-weight:700;margin:6px 0 2px;line-height:1.45;word-break:break-word}
+.done .title{color:var(--sub);text-decoration:line-through}
+.teacher{font-size:13px;color:var(--sub)}
+.acts{display:flex;flex-direction:column;justify-content:center;gap:6px;padding:10px 12px 10px 0}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:8px 10px;font-size:13px;cursor:pointer;white-space:nowrap;text-decoration:none;text-align:center;font-family:inherit}
+.btn.pri{background:var(--main);border-color:var(--main);color:#fff;font-weight:700}
+.empty{text-align:center;color:var(--sub);padding:56px 16px;line-height:1.9}
+.banner{background:#fdecea;color:#8a1c12;border-radius:12px;padding:10px 12px;font-size:13px;margin:10px 0;line-height:1.6}
+@media (prefers-color-scheme:dark){.banner{background:#3a1d1a;color:#ffb4a8}}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translate(-50%,120px);visibility:hidden;width:min(92vw,440px);background:#222;color:#fff;border-radius:12px;padding:10px 12px 10px 16px;display:flex;gap:12px;align-items:center;font-size:14px;transition:transform .25s;max-width:92vw;z-index:20}
+.toast.show{transform:translate(-50%,0);visibility:visible}
+.toast span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toast button{white-space:nowrap;background:none;border:0;color:#7fd3ff;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit}
+.lock{max-width:420px;margin:12vh auto 0;padding:24px}
+.lock h2{font-size:20px}.lock p{color:var(--sub);font-size:14px;line-height:1.7}
+input{width:100%;font-size:17px;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);margin:8px 0}
+.full{width:100%;padding:13px;font-size:16px;margin-top:6px}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-end;z-index:30}
+.sheet.show{display:flex}
+.sheet .in{background:var(--card);width:100%;max-width:680px;margin:0 auto;border-radius:18px 18px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom))}
+.sheet h3{margin:0 0 10px}.sheet p{font-size:13px;color:var(--sub);line-height:1.7}
+.sheet .btn{display:block;width:100%;margin-top:8px;padding:12px;font-size:15px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="toastUndo">元に戻す</button></div>
+<div class="sheet" id="sheet"><div class="in">
+  <h3>メニュー</h3>
+  <a class="btn" href="https://rp.reitaku-u.ac.jp/uprx/" target="_blank" rel="noopener">麗澤ポータルを開く ↗</a>
+  <button class="btn" id="mInstall">ホーム画面に追加する方法</button>
+  <button class="btn" id="mLogout">合言葉を入れ直す</button>
+  <p id="installHelp" hidden><b>iPhone</b>：Safariの共有ボタン →「ホーム画面に追加」<br><b>Android</b>：Chromeの︙メニュー →「ホーム画面に追加」または「アプリをインストール」</p>
+  <p>課題は数時間おきに自動で更新されます。完了の印はこの端末にだけ保存されます。</p>
+  <button class="btn" id="mClose">閉じる</button>
+</div></div>
+
+<script>
+(function(){
+var KEY='kadai-pass', DONE='kadai-done', CACHE='kadai-cache';
+var state={data:null,view:'todo',loading:false,undo:null};
+var app=document.getElementById('app');
+
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return null}}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function doneSet(){try{return JSON.parse(ls(DONE)||'{}')}catch(e){return {}}}
+function setDone(id,v){var d=doneSet();if(v)d[id]=Date.now();else delete d[id];ls(DONE,JSON.stringify(d))}
+
+/* ---- 復号（Python側と同じ PBKDF2-SHA256 + AES-GCM） ---- */
+function b64(s){var b=atob(s),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
+async function decrypt(enc,pass){
+  var base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);
+  var key=await crypto.subtle.deriveKey({name:'PBKDF2',salt:b64(enc.salt),iterations:enc.iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['decrypt']);
+  var pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(enc.iv)},key,b64(enc.ct));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function load(pass){
+  var r=await fetch('data.json?t='+Date.now(),{cache:'no-store'});
+  if(!r.ok) throw new Error('まだデータがありません（GitHub Actions が一度も動いていない可能性があります）');
+  var enc=await r.json();
+  try{return await decrypt(enc,pass)}catch(e){var x=new Error('合言葉が違います');x.wrong=true;throw x}
+}
+
+/* ---- 締切の分類 ---- */
+var GROUP={over:'期限切れ',today:'今日が締切',soon:'明日が締切',week:'今週中',later:'それ以降',done:'完了済み'};
+function due(it){return new Date(it.due+':00+09:00')}
+function jstDate(d){return new Date(d.getTime()+9*3600e3).toISOString().slice(0,10)}
+function group(it,now,dn){
+  if(dn[it.id])return 'done';
+  var d=due(it),ms=d-now;
+  if(ms<0)return 'over';
+  if(jstDate(d)===jstDate(now))return 'today';
+  if(jstDate(d)===jstDate(new Date(now.getTime()+864e5)))return 'soon';
+  if(ms<7*864e5)return 'week';
+  return 'later';
+}
+function remain(it,now,g){
+  if(g==='done')return '完了';
+  var s=(due(it)-now)/1000;
+  if(s<0)return '期限切れ';
+  if(s<3600)return 'あと'+Math.max(1,Math.floor(s/60))+'分';
+  if(s<86400)return 'あと'+Math.floor(s/3600)+'時間';
+  return 'あと'+Math.floor(s/86400)+'日';
+}
+var WD='日月火水木金土';
+function fmt(it){var p=it.due.split('T'),d=p[0].split('-');var w=new Date(p[0]+'T12:00:00+09:00');
+  return Number(d[1])+'/'+Number(d[2])+'('+WD[w.getUTCDay()]+') '+p[1]}
+function gcal(it){var e=due(it),s=new Date(e-30*60e3),f=function(x){return x.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'')};
+  return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent('【締切】'+it.title)+'&dates='+f(s)+'/'+f(e)+'&details='+encodeURIComponent(it.teacher||'')+'&ctz=Asia/Tokyo'}
+
+/* ---- 画面 ---- */
+function lockScreen(msg){
+  app.innerHTML='<div class="lock"><h2>ReiMind</h2><p style="margin-top:-8px">麗澤ポータルの課題リマインダー</p>'+
+    '<p>GitHub に設定した <b>合言葉</b>（KADAI_PASSPHRASE）を入れてください。最初の1回だけです。</p>'+
+    (msg?'<div class="banner">'+esc(msg)+'</div>':'')+
+    '<form id="f"><input id="p" type="password" autocomplete="current-password" placeholder="合言葉"><button class="btn pri full">開く</button></form></div>';
+  document.getElementById('f').onsubmit=function(e){e.preventDefault();var v=document.getElementById('p').value.trim();if(v)start(v)};
+  document.getElementById('p').focus();
+}
+
+function render(){
+  var d=state.data, now=new Date(), dn=doneSet();
+  var items=(d&&d.items)||[];
+  var todo=items.filter(function(i){return !dn[i.id]});
+  var cnt={};todo.forEach(function(i){var g=group(i,now,dn);cnt[g]=(cnt[g]||0)+1});
+  var upd=d&&d.updated?new Date(d.updated):null;
+  var updTxt=upd?('更新 '+(jstDate(upd)===jstDate(now)?'':(upd.getMonth()+1)+'/'+upd.getDate()+' ')+upd.toTimeString().slice(0,5)):'';
+  var h='<header><div class="hrow"><h1>ReiMind</h1>'+
+    '<button class="icon-btn" id="rf" aria-label="更新"><span'+(state.loading?' class="spin" style="display:inline-block"':'')+'>⟳</span></button>'+
+    '<button class="icon-btn" id="mn" aria-label="メニュー">☰</button></div><div class="stats">'+
+    (todo.length?'<b>未完了 '+todo.length+'件</b>':'<b>未完了なし 🎉</b>')+
+    ['over','today','soon'].filter(function(g){return cnt[g]}).map(function(g){return '<span class="chip '+g+'">'+{over:'期限切れ',today:'今日',soon:'明日'}[g]+' '+cnt[g]+'</span>'}).join('')+
+    '<span class="upd">'+esc(updTxt)+'</span></div></header><main>';
+  if(d&&d.error) h+='<div class="banner">⚠ 最新の取得に失敗しました：'+esc(d.error)+'</div>';
+  if(upd && now-upd>12*3600e3) h+='<div class="banner">⚠ 最後の更新から12時間以上たっています。GitHub Actions が止まっていないか確認してください</div>';
+  h+='<div class="seg"><button data-v="todo" class="'+(state.view==='todo'?'on':'')+'">未完了</button><button data-v="done" class="'+(state.view==='done'?'on':'')+'">完了済み</button></div>';
+  var showDone=state.view==='done';
+  var rows=items.filter(function(i){return !!dn[i.id]===showDone});
+  if(showDone)rows.reverse();
+  if(!rows.length){
+    h+='<div class="empty">'+(showDone?'完了済みの課題はありません':(items.length?'すべて完了しました 🎉':'締切のある課題はありません'))+'</div>';
+  }else{
+    var cur='';
+    rows.forEach(function(it){
+      var g=group(it,now,dn);
+      if(g!==cur){cur=g;var n=rows.filter(function(r){return group(r,now,dn)===g}).length;
+        h+='<div class="gh" style="color:var(--'+g+')">'+GROUP[g]+'　'+n+'</div>'}
+      h+='<div class="card'+(g==='done'?' done':'')+'" data-id="'+esc(it.id)+'"><div class="stripe" style="background:var(--'+g+')"></div>'+
+        '<div class="cb"><div class="meta"><span class="badge" style="background:var(--'+g+')">'+remain(it,now,g)+'</span>締切 '+esc(fmt(it))+'</div>'+
+        '<div class="title">'+esc(it.title)+'</div>'+(it.teacher?'<div class="teacher">'+esc(it.teacher)+'</div>':'')+'</div>'+
+        '<div class="acts">'+(g==='done'?'<button class="btn" data-a="undo">↩ 戻す</button>':
+          '<button class="btn pri" data-a="done">✓ 完了</button><a class="btn" href="'+gcal(it)+'" target="_blank" rel="noopener">📅</a>')+'</div></div>';
+    });
+  }
+  app.innerHTML=h+'</main>';
+  document.title=(cnt.over||cnt.today?'('+((cnt.over||0)+(cnt.today||0))+') ':'')+'ReiMind';
+}
+
+app.addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  if(b.id==='rf'){refresh();return}
+  if(b.id==='mn'){document.getElementById('sheet').classList.add('show');return}
+  if(b.dataset.v){state.view=b.dataset.v;render();return}
+  var a=b.dataset.a;if(!a)return;
+  var card=b.closest('.card'),id=card.dataset.id,it=state.data.items.find(function(i){return i.id===id});
+  var v=a==='done';
+  card.classList.add('leaving');
+  setTimeout(function(){setDone(id,v);render();toast((v?'完了：':'戻しました：')+it.title.slice(0,18),function(){setDone(id,!v);render()})},220);
+});
+
+var tt;
+function toast(msg,undo){
+  document.getElementById('toastMsg').textContent=msg;
+  var t=document.getElementById('toast'),u=document.getElementById('toastUndo');
+  u.hidden=!undo;u.onclick=function(){t.classList.remove('show');undo&&undo()};
+  t.classList.add('show');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('show')},5000);
+}
+
+document.getElementById('mClose').onclick=function(){document.getElementById('sheet').classList.remove('show')};
+document.getElementById('sheet').onclick=function(e){if(e.target.id==='sheet')e.target.classList.remove('show')};
+document.getElementById('mInstall').onclick=function(){document.getElementById('installHelp').hidden=false};
+document.getElementById('mLogout').onclick=function(){ls(KEY,null);ls(CACHE,null);document.getElementById('sheet').classList.remove('show');state.data=null;lockScreen()};
+
+async function refresh(){
+  var pass=ls(KEY);if(!pass){lockScreen();return}
+  state.loading=true;render();
+  try{
+    state.data=await load(pass);
+    ls(CACHE,JSON.stringify(state.data));
+    // 古い完了印を掃除
+    var dn=doneSet(),ids={};state.data.items.forEach(function(i){ids[i.id]=1});
+    Object.keys(dn).forEach(function(k){if(!ids[k])delete dn[k]});ls(DONE,JSON.stringify(dn));
+  }catch(e){
+    if(e.wrong){ls(KEY,null);state.loading=false;lockScreen(e.message);return}
+    toast(navigator.onLine?e.message:'オフラインです。前回の内容を表示しています');
+  }
+  state.loading=false;render();
+}
+async function start(pass){
+  try{state.data=await load(pass);ls(KEY,pass);ls(CACHE,JSON.stringify(state.data));render()}
+  catch(e){lockScreen(e.message)}
+}
+
+/* ---- 起動 ---- */
+var cached=ls(CACHE);
+if(ls(KEY)){
+  if(cached){try{state.data=JSON.parse(cached)}catch(e){}}
+  render();refresh();
+}else lockScreen();
+setInterval(function(){if(state.data&&!state.loading)render()},60e3);
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&ls(KEY))refresh()});
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(function(){})}
+})();
+</script>
+</body>
+</html>
