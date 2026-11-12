@@ -178,6 +178,10 @@ def get_credentials():
     return uid, (pw.strip() if pw else None)
 
 
+# 直近の取得結果（一覧を開けたか、「課題◯件」の件数）。提出済みの課題を消してよいかの判断に使う
+LAST_FETCH = {}
+
+
 def fetch(show=False, uid=None, pw=None, log=print):
     from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
@@ -263,7 +267,11 @@ def fetch(show=False, uid=None, pw=None, log=print):
                         page.reload()
                         page.wait_for_load_state("networkidle")
                         page.wait_for_timeout(2000)
+            LAST_FETCH.clear()
+            LAST_FETCH["opened"] = opened
             if opened:
+                m = re.search(r"(\d+)", link.inner_text())
+                LAST_FETCH["count"] = int(m.group(1)) if m else None
                 link.click()
                 page.wait_for_load_state("networkidle")
                 try:
@@ -404,8 +412,19 @@ def cloud(out_path):
         try:
             found = fetch()
             lock.unlink(missing_ok=True)
+            # 提出した課題はポータルの一覧から消えるので、こちらからも消す。
+            # ただし一覧を最後まで読めたと確かめられたときだけ（読み取りの失敗で全部消えないように）
+            expected = LAST_FETCH.get("count")
+            complete = bool(found) and LAST_FETCH.get("opened") and (expected is None or len(found) >= expected)
+            removed = 0
+            if complete:
+                keys = {key_of(f) for f in found}
+                before = len(items)
+                items = [i for i in items if key_of(i) in keys]
+                removed = before - len(items)
             added = merge(items, found)
-            print(f"ポータルの課題 {len(found)}件 ／ 新しく追加 {len(added)}件")
+            print(f"ポータルの課題 {len(found)}件 ／ 新しく追加 {len(added)}件 ／ 終わって消えた {removed}件"
+                  + ("" if complete else "（一覧を確認できなかったので削除はしていません）"))
             n = remind(items, added)
             print(f"{n}件を通知")
         except Exception as e:
@@ -414,9 +433,9 @@ def cloud(out_path):
             if "ログインできませんでした" in error:
                 lock.write_text(error, encoding="utf-8")
                 notify("ReiMind：ログイン失敗", "自動更新を止めました。パスワードを確認してください")
-    # 終わった課題は1週間で整理
+    # 締切を1日過ぎた課題は整理（一覧を確認できなかったときの保険）
     now = dt.datetime.now(JST)
-    items = [i for i in items if (due_dt(i) - now).total_seconds() > -7 * 86400]
+    items = [i for i in items if (due_dt(i) - now).total_seconds() > -86400]
     save_items(items)
     payload = {
         "updated": now.isoformat(timespec="minutes"),
