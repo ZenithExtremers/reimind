@@ -182,6 +182,46 @@ def get_credentials():
 LAST_FETCH = {}
 
 
+PROBE_JS = """
+(el) => {
+  const out = [];
+  let e = el;
+  for (let i = 0; i < 4 && e; i++, e = e.parentElement) {
+    out.push({lv: i, tag: e.tagName, cls: e.className, exp: e.getAttribute('aria-expanded'),
+              sel: e.getAttribute('aria-selected'), role: e.getAttribute('role')});
+  }
+  const sibs = [];
+  let h = el.closest('[role=tab], h3, .ui-accordion-header') || el.parentElement;
+  let n = h && h.nextElementSibling;
+  for (let i = 0; i < 3 && n; i++, n = n.nextElementSibling) {
+    const t = n.innerText || '';
+    sibs.push({tag: n.tagName, cls: n.className, hidden: n.getAttribute('aria-hidden'),
+               disp: getComputedStyle(n).display, h: n.offsetHeight, len: t.length,
+               ken: (t.match(/件/g) || []).length, kadaiN: /課題\\s*\\d+\\s*件/.test(t)});
+  }
+  return {chain: out, next: sibs};
+}
+"""
+
+
+def probe(page):
+    """「期限あり」まわりの画面構造だけをログに出す（課題名は出さない）"""
+    head = page.get_by_text("期限あり", exact=True).first
+    print("PROBE count:", head.count())
+    if not head.count():
+        return
+    print("PROBE before:", json.dumps(head.evaluate(PROBE_JS), ensure_ascii=False))
+    for how in ("tap", "click"):
+        try:
+            getattr(head, how)(timeout=5000)
+        except Exception as e:
+            print("PROBE", how, "error:", type(e).__name__)
+        page.wait_for_timeout(2500)
+        print(f"PROBE after {how}:", json.dumps(head.evaluate(PROBE_JS), ensure_ascii=False))
+        err = page.get_by_text("通信中にエラー").first
+        print("PROBE error visible:", bool(err.count() and err.is_visible()))
+
+
 def fetch(show=False, uid=None, pw=None, log=print):
     from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
@@ -262,11 +302,14 @@ def fetch(show=False, uid=None, pw=None, log=print):
                     link.wait_for(state="visible", timeout=6000)
                 except PWTimeout:
                     # 通信エラーが出たら、ポータルトップを開き直してやり直す
-                    if page.get_by_text("通信中にエラー").count():
+                    err = page.get_by_text("通信中にエラー").first
+                    if err.count() and err.is_visible():
                         log("ポータルの通信エラー。やり直しています…")
                         page.reload()
                         page.wait_for_load_state("networkidle")
                         page.wait_for_timeout(2000)
+            if os.environ.get("KADAI_PROBE"):
+                probe(page)
             LAST_FETCH.clear()
             LAST_FETCH["opened"] = opened
             if opened:
@@ -470,6 +513,7 @@ def main():
     ap.add_argument("--done", type=int, metavar="N", help="一覧のN番を完了にする")
     ap.add_argument("--ics", action="store_true", help="kadai.ics を書き出す")
     ap.add_argument("--cloud", metavar="OUT", help="GitHub Actions 用：取得して暗号化した data.json を書き出す")
+    ap.add_argument("--probe", action="store_true", help="画面の構造だけを調べる（何も保存しない）")
     a = ap.parse_args()
 
     if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -478,6 +522,11 @@ def main():
         except Exception:
             pass
 
+    if a.probe:
+        os.environ["KADAI_PROBE"] = "1"
+        found = fetch()
+        print("PROBE found:", len(found), "LAST_FETCH:", LAST_FETCH)
+        return
     if a.cloud:
         return cloud(a.cloud)
     if a.setup:

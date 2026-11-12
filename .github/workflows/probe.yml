@@ -1,0 +1,22 @@
+name: 画面の構造を調べる（一時的）
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          pip install -r requirements-ci.txt
+          python -m playwright install --with-deps chromium
+      - env:
+          REITAKU_ID: ${{ secrets.REITAKU_ID }}
+          REITAKU_PW: ${{ secrets.REITAKU_PW }}
+          CI: "1"
+        run: python reitaku_kadai.py --probe
