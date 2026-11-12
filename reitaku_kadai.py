@@ -285,12 +285,29 @@ def fetch(show=False, uid=None, pw=None, log=print):
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(1500)
             link = page.get_by_text(re.compile(r"課題\s*\d+\s*件")).first
-            opened = False
+            # 「期限あり」は開閉式の欄。すでに開いていることもあるので、
+            # 閉じているときだけタップする（開いている欄をタップすると閉じてしまう）
+            head = page.get_by_text("期限あり", exact=True).first
+            panel = head.locator("xpath=ancestor::div[contains(concat(' ', @class, ' '), ' ui-collapsible ')][1]")
+            content = panel.locator(".ui-collapsible-content").first
+            opened = empty = False
             for attempt in range(4):
                 if link.count() and link.is_visible():
                     opened = True
                     break
-                head = page.get_by_text("期限あり", exact=True).first
+                try:
+                    collapsed = "ui-collapsible-collapsed" in (panel.get_attribute("class", timeout=5000) or "")
+                except Exception:
+                    collapsed = True
+                if not collapsed:
+                    # 開いているのに「課題◯件」が無い → 期限のある課題は0件
+                    try:
+                        text = content.inner_text(timeout=3000)
+                    except Exception:
+                        text = None
+                    if text is not None and "件" not in text:
+                        empty = True
+                        break
                 try:
                     if attempt % 2 == 0:
                         head.tap(timeout=5000)      # スマホ版はタップで開く
@@ -308,10 +325,9 @@ def fetch(show=False, uid=None, pw=None, log=print):
                         page.reload()
                         page.wait_for_load_state("networkidle")
                         page.wait_for_timeout(2000)
-            if os.environ.get("KADAI_PROBE"):
-                probe(page)
             LAST_FETCH.clear()
             LAST_FETCH["opened"] = opened
+            LAST_FETCH["empty"] = empty
             if opened:
                 m = re.search(r"(\d+)", link.inner_text())
                 LAST_FETCH["count"] = int(m.group(1)) if m else None
@@ -322,8 +338,8 @@ def fetch(show=False, uid=None, pw=None, log=print):
                 except PWTimeout:
                     pass
                 page.wait_for_timeout(800)
-            elif page.get_by_text("期限あり", exact=True).count():
-                log("「期限あり」に課題がありません")
+            elif empty:
+                log("「期限あり」に課題はありません（全部終わっています）")
 
             text = page.inner_text("body")
             for f in page.frames[1:]:
@@ -458,7 +474,8 @@ def cloud(out_path):
             # 提出した課題はポータルの一覧から消えるので、こちらからも消す。
             # ただし一覧を最後まで読めたと確かめられたときだけ（読み取りの失敗で全部消えないように）
             expected = LAST_FETCH.get("count")
-            complete = bool(found) and LAST_FETCH.get("opened") and (expected is None or len(found) >= expected)
+            complete = (bool(found) and LAST_FETCH.get("opened") and (expected is None or len(found) >= expected)) \
+                or (not found and LAST_FETCH.get("empty"))
             removed = 0
             if complete:
                 keys = {key_of(f) for f in found}
